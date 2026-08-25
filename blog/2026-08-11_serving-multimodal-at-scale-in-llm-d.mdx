@@ -48,8 +48,8 @@ Media arrives as a continuous signal that has not been discretized yet. Pixels b
 
 Two consequences deserve to be stated on their own, because nearly everything llm-d does about multimodal traffic exists to handle them.
 
-**The request body does not tell you the cost.** For text, the length of the body is a decent proxy for the work.
-For media it tells you nothing useful. A 1280x720 image is worth roughly 880 visual tokens to Qwen3-VL — more than most text prompts — whether it arrives as a 200 KB JPEG, a 2 MB PNG, or a 60-byte URL.
+**The request body does not tell you the prefill cost.** For text, the length of the body is a decent proxy for the work a replica is about to do: bytes in, tokens out, roughly proportional, and the token count is what prefill is billed in.
+For media that proxy breaks completely. A 1280x720 image is worth roughly 880 visual tokens to Qwen3-VL — more than most text prompts — whether it arrives as a 200 KB JPEG, a 2 MB PNG, or a 60-byte URL.
 Meanwhile the same 200 KB of bytes could be a thumbnail worth 40 tokens or a document scan worth 4,000.
 Byte count and token count are simply unrelated quantities.
 
@@ -57,7 +57,7 @@ Byte count and token count are simply unrelated quantities.
 Media has no prefixes as text: half a JPEG is not a smaller JPEG. An image is one atomic unit that either matches or does not, keyed by a hash of its content.
 That is a weaker matching structure than text's, but it has one very useful property: a content hash means the same thing on every pod in the fleet.
 
-## Two Kinds of Request
+## Two Kinds of Requests
 
 Now put a text-only request and a multimodal request next to each other on the same OpenAI-compatible endpoint, served by the same model.
 
@@ -76,8 +76,7 @@ Now put a text-only request and a multimodal request next to each other on the s
 
 Both are valid chat completions against the same deployment. From the router's point of view they have almost nothing in common.
 
-**1. The payload introduces complex asset types and external references, not just tokenizable text. While a standard router can easily read and tokenize a "text" part, introducing multimodal elements means the router suddenly encounters non-text structures.
-The heaviest and most expensive part of the request may not even be present in the payload: as seen in the multimodal example, an image_url is merely a reference, meaning the actual bytes live somewhere else.
+**1. The payload introduces complex asset types and external references, not just tokenizable text.** While a standard router can easily read and tokenize a `text` part, introducing multimodal elements means the router suddenly encounters non-text structures. The heaviest and most expensive part of the request may not even be present in the payload: as seen in the multimodal example, an `image_url` is merely a reference, meaning the actual bytes live somewhere else.
 
 **2. Token accounting requires model knowledge the tokenizer does not have.** To price the text half you run a tokenizer. To price the image half you need the model's patch size and spatial merge strategy — and different model families answer differently enough that the same image is worth 900 tokens to one and 280 to another. There is no universal answer to "how many tokens is this image."
 
@@ -99,7 +98,7 @@ Differences 1 through 5 are each individually survivable on one replica. On a fl
 
 ## How llm-d Handles a Multimodal Request
 
-Each of the six differences maps to something concrete in the llm-d router (EPP) or in the deployment topology. Taking them in order.
+Each of the five differences maps to something concrete in the llm-d router (EPP) or in the deployment topology. Taking them in order.
 
 ### Reading a payload the router cannot see (difference 1)
 
@@ -109,11 +108,20 @@ EPP parses the content-part array and resolves per-asset metadata before it can 
 - **Image URLs** — EPP does **not** fetch the remote content. It falls back to a configured `defaultResolution`. This is a deliberate trade: fetching would put an unbounded external round-trip on the routing hot path. But it means URL-heavy traffic is being priced at a constant, and that constant should reflect your actual traffic.
 - **Video** — EPP cannot inspect video at all, so clients supply metadata via headers: `x-llm-d-video-fps`, `x-llm-d-video-duration-seconds`, and `x-llm-d-video-resolution` (as `WIDTHxHEIGHT`). Anything omitted falls back to a configured default.
 
-### Pricing an multimodal asset with metadata alone (difference 2)
+### Pricing a multimodal asset with metadata alone (difference 2)
 
-With metadata in hand, the `token-producer` plugin estimates a token footprint. Models fall into two families, and the strategy is configurable per EPP.
+With metadata in hand, the `token-producer` plugin has to put a token count on each asset. How it gets there depends on which backend the plugin is configured with, and the distinction matters because only one of the two paths needs any of the tuning below:
+
+- **With a real tokenizer** — the `vllm` backend, where EPP calls vLLM's `/v1/chat/completions/render` endpoint (typically a GPU-less `vllm launch render` sidecar in the EPP pod or a standalone render deployment in llm-d) — there is nothing to estimate. vLLM runs the model's own processor and returns exact token IDs along with the multimodal placeholder counts, so none of the `estimate` configuration below is read at all. This is also what precise prefix-cache-aware routing requires, since block keys have to line up with the engine's real tokens.
+- **Without one** — the default `estimate` backend, which is tokenizer-free byte-packing and needs no model, no sidecar, and no network hop — EPP has no processor to ask. It approximates the placeholder count from the metadata it just resolved, and everything in the rest of this section applies to that path only.
+
+So the estimator is the price you pay for skipping the tokenizer. It keeps routing decisions cheap and dependency-free, at the cost of having to encode a bit of the model's own arithmetic in EPP config. Models fall into two families, and the strategy is configurable per EPP.
 
 **Dimension-based** (Qwen-VL style) derives the count from resolution:
+
+```text
+tokens = (width × height) / factor
+```
 
 with `factor = 1024` (32x32) for Qwen3-VL — one visual token per 32x32-pixel region, from patch size 16 and spatial merge 2. Video multiplies per-frame tokens by a sampled frame count: sample at `sampleFPS`, clamp to `[minFrames, maxFrames]`, divide by `temporalPatchSize`, then cap the total at `maxVideoTokens`.
 
@@ -175,7 +183,7 @@ with `factor = 1024` (32x32) for Qwen3-VL — one visual token per 32x32-pixel r
         maxVideoTokens: 12288
 ```
 
-Getting this wrong is a silent failure, which is why the guide calls it out in bold. Point the resolution-based estimator at `google/gemma-4-31B-it` and it prices a 1280x720 image at 900 tokens instead of 280. Every multimodal request is mis-priced, routing skews, and nothing in the logs says so. **The estimator must match the served model**.
+Getting this wrong is a silent failure, which is why the guide calls it out in bold. Point the resolution-based estimator at `google/gemma-4-31B-it` and it prices a 1280x720 image at 900 tokens instead of 280. Every multimodal request is mis-priced, routing skews, and nothing in the logs says so. **The estimator must match the served model** — or configure the `vllm` render backend and let the model's own processor answer the question instead.
 
 ### Balancing requests that are not interchangeable (differences 3 and 4)
 
