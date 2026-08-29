@@ -48,10 +48,12 @@ cnuland:
 
 niliguy:
   name: Nili Guy
-  title: R&D Manager, AI Infrastructure, IBM
+  title: Senior Technical Staff Member, IBM Research
+  url: https://github.com/nilig
   image_url: /img/blogs/niliguy.webp
   socials:
     linkedin: nilig
+    github: nilig
 
 etailevran:
   name: Etai Lev Ran
@@ -206,6 +208,18 @@ kaushikmitra:
   url: https://github.com/kaushikmitr
   image_url: https://avatars.githubusercontent.com/u/157416163?v=4
 
+chenghsiangchiu:
+  name: Cheng-Hsiang Chiu
+  title: Software Engineer, Google
+  url: https://github.com/cheng-hsiang-chiu
+  image_url: https://avatars.githubusercontent.com/u/58955345?v=4
+
+brentstephens:
+  name: Brent Stephens
+  title: Software Engineer, Google
+  url: https://github.com/brent-srg
+  image_url: https://avatars.githubusercontent.com/u/125617878?v=4
+
 benjaminbraun:
   name: Benjamin Braun
   title: Software Engineer, Google
@@ -289,6 +303,32 @@ abhisyant:
   socials:
     linkedin: abhisyant
 
+bogdan:
+  name: Bogdan Berce
+  title: Software Engineer, Google
+  image_url: https://github.com/BogdanBe.png
+
+aishu:
+  name: Aishu Kamal
+  title: Software Engineer, Google
+  image_url: https://github.com/aishukamal.png
+  socials:
+    linkedin: https://www.linkedin.com/in/aishwaryakamal
+
+dolev:
+  name: Dolev Ish Am
+  title: Software Engineering Manager, Google
+  image_url: https://github.com/ishamdo.png
+  socials:
+    linkedin: https://www.linkedin.com/in/dolev-ish-am-b41a8917/
+
+poonamlamba:
+  name: Poonam Lamba
+  title: Senior Product Manager, Google
+  email: poonaml@google.com
+  image_url: https://avatars.githubusercontent.com/u/5097648?v=4
+  socials:
+    linkedin: https://www.linkedin.com/in/poonamlamba/
 maroonayoub-redhat:
   name: Maroon Ayoub
   title: Senior Principal Machine Learning Engineer, Red Hat
@@ -501,6 +541,23 @@ alexnails:
   socials:
     linkedin: alex-nails
     github: https://github.com/alexnails
+
+gyliu513:
+  name: Guangya Liu
+  title: Executive Director, JPMorgan Chase
+  email: gyliu513@gmail.com
+  image_url: https://avatars.githubusercontent.com/u/4461983?v=4
+  socials:
+    github: https://github.com/gyliu513
+    website: https://gyliu513.github.io/
+
+prateekkumar:
+  name: Prateek Kumar
+  title: Senior Member Technical Staff, AMD AI Group
+  image_url: https://avatars.githubusercontent.com/u/85689959?v=4
+  socials:
+    linkedin: prateek1709
+    github: https://github.com/PrateekKumar1709
 
 xiyue:
   name: Xiyue Yu

@@ -95,6 +95,18 @@ const config = {
     },
   },
 
+  // Add kapa.ai AI assistant widget
+  scripts: [
+    {
+      src: 'https://widget.kapa.ai/kapa-widget.bundle.js',
+      'data-website-id': '1eea1a6a-a57b-48d7-a4aa-c993481daad7',
+      'data-project-name': 'llm-d',
+      'data-project-color': '#9b4d9b',
+      'data-project-logo': 'https://llm-d.ai/img/llm-d-favicon.png',
+      async: true,
+    },
+  ],
+
   presets: [
     [
       "classic",
@@ -149,6 +161,18 @@ const config = {
   ],
 
   plugins: [
+    // Client-side redirects for URLs that have moved (e.g. renamed blog slugs).
+    [
+      "@docusaurus/plugin-client-redirects",
+      {
+        redirects: [
+          {
+            from: "/blog/bottleneck-aware-scheduling-for-llm-inference",
+            to: "/blog/sticky-until-saturated-token-aware-routing",
+          },
+        ],
+      },
+    ],
     // Community section as its own docs instance (mirrors docusaurus.io/community).
     [
       "@docusaurus/plugin-content-docs",
